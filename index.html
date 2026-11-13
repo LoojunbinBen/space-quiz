@@ -325,6 +325,7 @@
     .finish-emoji { margin-bottom: 12px; font-size: 4.3rem; animation: bob 2.5s ease-in-out infinite; }
     .finish h1 { margin: 0 auto 12px; }
     .finish-copy { margin: 0 auto 24px; color: var(--muted); line-height: 1.6; }
+    .finish-best { margin: -12px auto 24px; color: var(--accent-deep); font-weight: 800; }
     .finish .next-button { margin: 0 auto; }
     .quiz-content.hidden { display: none; }
 
@@ -589,6 +590,7 @@
         <div class="finish-emoji" id="finishEmoji" aria-hidden="true">🌟</div>
         <h1 id="finishTitle">Mission complete!</h1>
         <p class="finish-copy" id="finishCopy"></p>
+        <p class="finish-best" id="personalBest"></p>
         <button class="next-button" id="restartButton" type="button">Play again <span aria-hidden="true">↻</span></button>
       </div>
     </section>
@@ -684,9 +686,34 @@
     const quizContent = document.getElementById("quizContent");
     const finish = document.getElementById("finish");
     const themeToggle = document.getElementById("themeToggle");
+    const personalBestElement = document.getElementById("personalBest");
+    const personalBestStorageKey = "orbit-academy-personal-best";
     let questionIndex = 0;
     let score = 0;
     let answered = false;
+    let personalBest = 0;
+
+    function loadPersonalBest() {
+      try {
+        const storedScore = localStorage.getItem(personalBestStorageKey);
+        if (storedScore === null) return 0;
+        if (!/^(0|[1-9]\d*)$/.test(storedScore)) {
+          localStorage.removeItem(personalBestStorageKey);
+          return 0;
+        }
+
+        const parsedScore = Number(storedScore);
+        if (!Number.isInteger(parsedScore) || parsedScore > questions.length) {
+          localStorage.removeItem(personalBestStorageKey);
+          return 0;
+        }
+        return parsedScore;
+      } catch (error) {
+        return 0;
+      }
+    }
+
+    personalBest = loadPersonalBest();
 
     function renderQuestion() {
       const current = questions[questionIndex];
@@ -764,11 +791,22 @@
     }
 
     function showResults() {
+      const isNewRecord = score > personalBest;
+      if (isNewRecord) {
+        personalBest = score;
+        try {
+          localStorage.setItem(personalBestStorageKey, String(personalBest));
+        } catch (error) {
+          // The current page still tracks the best score when storage is unavailable.
+        }
+      }
+
       quizContent.classList.add("hidden");
       finish.classList.add("active");
       document.getElementById("finishEmoji").textContent = score === 10 ? "🏆" : score >= 7 ? "🌟" : score >= 4 ? "🪐" : "🌙";
       document.getElementById("finishTitle").textContent = score === 10 ? "Out-of-this-world!" : score >= 7 ? "Stellar mission!" : score >= 4 ? "Nice space walk!" : "Rookie astronaut!";
       document.getElementById("finishCopy").textContent = `You scored ${score} out of ${questions.length}. ${score >= 7 ? "The cosmos is lucky to have you, explorer." : "Every great explorer starts with curiosity. Ready for another orbit?"}`;
+      personalBestElement.textContent = `Personal best: ${personalBest} out of ${questions.length}${isNewRecord ? " — New record!" : ""}`;
       document.getElementById("restartButton").focus();
       if (score >= 7) celebrate();
     }
